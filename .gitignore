@@ -1,0 +1,41 @@
+# 환경 변수 / 시크릿
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+credentials*.json
+
+# 의존성
+node_modules/
+
+# 빌드 산출물
+dist/
+build/
+*.tsbuildinfo
+
+# 런타임 업로드 / 임시 파일
+uploads/
+tmp/
+temp/
+
+# 로그
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 테스트 커버리지
+coverage/
+.nyc_output/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
