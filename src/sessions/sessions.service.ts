@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
 import { CreateSessionDto } from './dto/create-session.dto';
@@ -6,17 +7,9 @@ import { CreateSessionDto } from './dto/create-session.dto';
 export class SessionsService {
   constructor(private readonly supabase: SupabaseService) {}
 
+  // 96비트 엔트로피 (hex 24자) — 기존 24비트 대비 4조 배 이상 안전
   private generateShareCode(): string {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const digits = '0123456789';
-    let code = '';
-    for (let i = 0; i < 3; i++) {
-      code += letters.charAt(Math.floor(Math.random() * letters.length));
-    }
-    for (let i = 0; i < 3; i++) {
-      code += digits.charAt(Math.floor(Math.random() * digits.length));
-    }
-    return code;
+    return randomBytes(12).toString('hex');
   }
 
   async create(userId: string, token: string, dto: CreateSessionDto) {

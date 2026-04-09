@@ -1,8 +1,12 @@
-import { Injectable, HttpException } from '@nestjs/common';
+import { Injectable, HttpException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/supabase/supabase.service';
 import axios from 'axios';
 import FormData from 'form-data';
+import { fromBuffer } from 'file-type';
+
+export const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'png', 'webp']);
 
 @Injectable()
 export class ImagesService {
@@ -15,7 +19,16 @@ export class ImagesService {
     this.imageServerUrl = config.get('IMAGE_SERVER_URL', 'http://localhost:8001');
   }
 
+  private async validateImageFile(buffer: Buffer): Promise<void> {
+    const detected = await fromBuffer(buffer);
+    if (!detected || !ALLOWED_IMAGE_EXTS.has(detected.ext)) {
+      throw new BadRequestException('이미지 파일(JPEG, PNG, WebP)만 업로드할 수 있습니다.');
+    }
+  }
+
   async removeBackground(file: Express.Multer.File): Promise<Buffer> {
+    await this.validateImageFile(file.buffer);
+
     try {
       const formData = new FormData();
       formData.append('image', file.buffer, {
@@ -52,6 +65,8 @@ export class ImagesService {
     filePath: string,
     token: string,
   ): Promise<{ url: string; path: string }> {
+    await this.validateImageFile(file.buffer);
+
     const client = this.supabase.getClientForUser(token);
 
     const { error } = await client.storage
