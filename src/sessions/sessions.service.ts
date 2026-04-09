@@ -7,9 +7,13 @@ import { CreateSessionDto } from './dto/create-session.dto';
 export class SessionsService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  // 96비트 엔트로피 (hex 24자) — 기존 24비트 대비 4조 배 이상 안전
+  // 기존 6자리 유지 (DB character(6) 제약), Math.random 대신 crypto.randomBytes 사용
+  // 36^6 ≈ 2.1억 조합 + CSPRNG → 기존 대비 엔트로피 및 예측 불가능성 개선
   private generateShareCode(): string {
-    return randomBytes(12).toString('hex');
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return Array.from(randomBytes(6))
+      .map((b) => chars[b % chars.length])
+      .join('');
   }
 
   async create(userId: string, token: string, dto: CreateSessionDto) {
