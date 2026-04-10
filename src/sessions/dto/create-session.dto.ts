@@ -3,14 +3,19 @@ import {
   IsBoolean,
   IsOptional,
   IsArray,
+  ArrayMaxSize,
   ValidateNested,
   IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SessionPhotoDto {
   @IsNumber()
-  shot_order: number;
+  @Min(1)
+  @Max(10)
+  shot_order!: number;
 
   @IsString()
   @IsOptional()
@@ -27,11 +32,7 @@ export class SessionPhotoDto {
 
 export class CreateSessionDto {
   @IsString()
-  frame_id: string;
-
-  @IsString()
-  @IsOptional()
-  frame_owner_id?: string;
+  frame_id!: string;
 
   @IsString()
   @IsOptional()
@@ -53,12 +54,9 @@ export class CreateSessionDto {
   @IsOptional()
   is_saved?: boolean;
 
-  @IsString()
-  @IsOptional()
-  display_user_id?: string;
-
   @IsArray()
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => SessionPhotoDto)
-  photos: SessionPhotoDto[];
+  photos!: SessionPhotoDto[];
 }

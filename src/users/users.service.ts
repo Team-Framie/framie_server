@@ -37,6 +37,8 @@ export class UsersService {
 
     if (error) throw new Error(error.message);
 
-    return { sessions: data };
+    // Private 버킷 — raw 경로 대신 단기 서명된 URL 반환
+    const sessions = await this.supabase.addSignedUrlsToSessions(data ?? [], userId);
+    return { sessions };
   }
 }

@@ -1,3 +1,4 @@
+/// <reference types="multer" />
 import {
   Controller,
   Post,
@@ -7,6 +8,7 @@ import {
   Res,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
@@ -35,6 +37,7 @@ export class ImagesController {
     @UploadedFile() file: Express.Multer.File,
     @Res() res: Response,
   ) {
+    if (!file) throw new BadRequestException('이미지 파일이 필요합니다.');
     const result = await this.imagesService.removeBackground(file);
     res.set({
       'Content-Type': 'image/png',
@@ -47,16 +50,15 @@ export class ImagesController {
   @UseGuards(SupabaseAuthGuard)
   @UseInterceptors(FileInterceptor('file', IMAGE_UPLOAD_OPTIONS))
   async upload(
-    @Req() req: Request & { token: string },
+    @Req() req: Request & { token: string; user: { id: string } },
     @UploadedFile() file: Express.Multer.File,
-    @Body('bucket') bucket: string,
-    @Body('path') filePath: string,
+    @Body('path') rawPath: string,
   ) {
-    return this.imagesService.uploadFile(
-      file,
-      bucket || 'photo-results',
-      filePath,
-      req.token,
-    );
+    if (!file) throw new BadRequestException('이미지 파일이 필요합니다.');
+    if (!rawPath || rawPath.includes('..') || rawPath.startsWith('/')) {
+      throw new BadRequestException('유효하지 않은 파일 경로입니다.');
+    }
+    const userScopedPath = `${req.user.id}/${rawPath}`;
+    return this.imagesService.uploadFile(file, 'photo-results', userScopedPath, req.token);
   }
 }

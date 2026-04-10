@@ -17,10 +17,8 @@ export class UsersController {
     @Req() req,
     @Query('limit') limit?: string,
   ) {
-    return this.usersService.getRecentSessions(
-      req.user.id,
-      req.token,
-      limit ? parseInt(limit, 10) : 10,
-    );
+    const parsed = limit ? parseInt(limit, 10) : 10;
+    const safeLimit = Number.isNaN(parsed) ? 10 : Math.min(Math.max(parsed, 1), 50);
+    return this.usersService.getRecentSessions(req.user.id, req.token, safeLimit);
   }
 }
