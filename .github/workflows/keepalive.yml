@@ -1,0 +1,13 @@
+name: Keep Alive
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping image server
+        run: curl -fsS --max-time 30 ${{ secrets.IMAGE_SERVER_HEALTH_URL || 'https://framie-image-server.onrender.com/health' }} || true
+      - name: Ping api server
+        run: curl -fsS --max-time 30 ${{ secrets.API_SERVER_HEALTH_URL || 'https://framie-server.onrender.com/health' }} || true

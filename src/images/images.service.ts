@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/supabase/supabase.service';
 import axios from 'axios';
 import FormData from 'form-data';
+import http from 'http';
+import https from 'https';
 import { fromBuffer } from 'file-type';
 import sharp from 'sharp';
 
@@ -13,12 +15,50 @@ const ALLOWED_IMAGE_EXTS = new Set(['jpg', 'png', 'webp']);
 @Injectable()
 export class ImagesService {
   private readonly imageServerUrl: string;
+  private readonly rembgClient;
 
   constructor(
     config: ConfigService,
     private readonly supabase: SupabaseService,
   ) {
     this.imageServerUrl = config.get('IMAGE_SERVER_URL', 'http://localhost:8001');
+    this.rembgClient = axios.create({
+      baseURL: this.imageServerUrl,
+      httpAgent: new http.Agent({ keepAlive: true, maxSockets: 10 }),
+      httpsAgent: new https.Agent({ keepAlive: true, maxSockets: 10 }),
+    });
+  }
+
+  private isRetryableRembgError(error: unknown): boolean {
+    if (!axios.isAxiosError(error)) return false;
+    const status = error.response?.status;
+    const code = error.code;
+    return code === 'ECONNRESET' || code === 'ETIMEDOUT' || status === 502 || status === 503 || status === 504;
+  }
+
+  private async callRembgWithRetry(formData: FormData): Promise<Buffer> {
+    const body = formData.getBuffer();
+    const headers = {
+      ...formData.getHeaders(),
+      'Content-Length': String(body.length),
+    };
+
+    const requestOnce = async (): Promise<Buffer> => {
+      const response = await this.rembgClient.post('/remove-bg', body, {
+        headers,
+        responseType: 'arraybuffer',
+        timeout: 60000,
+      });
+      return Buffer.from(response.data);
+    };
+
+    try {
+      return await requestOnce();
+    } catch (firstError) {
+      if (!this.isRetryableRembgError(firstError)) throw firstError;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return requestOnce();
+    }
   }
 
   // magic bytes 검증 + 감지된 실제 타입 반환
@@ -90,17 +130,7 @@ export class ImagesService {
         contentType: mime,           // 클라이언트 mimetype 대신 magic bytes 감지 결과 사용
       });
 
-      const response = await axios.post(
-        `${this.imageServerUrl}/remove-bg`,
-        formData,
-        {
-          headers: formData.getHeaders(),
-          responseType: 'arraybuffer',
-          timeout: 30000,
-        },
-      );
-
-      return Buffer.from(response.data);
+      return await this.callRembgWithRetry(formData);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status ?? 502;
